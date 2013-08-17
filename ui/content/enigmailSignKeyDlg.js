@@ -100,6 +100,14 @@ function onLoad() {
       document.getElementById("fingerprint").value=fpr.join(" ");
     }
   }
+  var sendSignedPubkey = EnigGetPref("sendSignedPubkey");
+  Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onLoad: Setting saved sendSignedPubkey state: " + sendSignedPubkey + "\n");
+  if (sendSignedPubkey != null) {
+    document.getElementById("mailSig").checked = sendSignedPubkey;
+  }
+  else {
+    document.getElementById("mailSig").checked = true;
+  }
 }
 
 function onAccept() {
@@ -125,7 +133,9 @@ function onAccept() {
         return true;
       }
       else {
+        Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Saving sendSignedPubkey state: " + document.getElementById("mailSig").checked == true + "\n");
         if (document.getElementById("mailSig").checked) {
+          EnigSetPref("sendSignedPubkey", true);
           var exitCodeObj = new Object();
           var statusFlagsObj = new Object();
           var errorMsgObj = new Object();
@@ -139,27 +149,29 @@ function onAccept() {
                        .createInstance(Components.interfaces.nsIMsgComposeParams);
           // TODO: Set Mail to automatically be encrypted (and signed?)
           Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data for " + keyId + ": enigmailSvc\n");
-          var sigListStr = enigmailSvc.getKeySig("0x"+keyId, exitCodeObj, errorMsgObj);
-          if (exitCodeObj.value == 0) {
+          var sigListStr = enigmailSvc.getKeySig("0x"+keyId, exitCodeObj, errorMsgObj); // Retriebe Key Data
+          if (exitCodeObj.value == 0) { // If key data retrieval worked...
             Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data: EnigGetKeyDetails\n");
-            var keyDetails = EnigGetKeyDetails(sigListStr);
-            if (keyDetails.gUserId == "") {
-              Ec.alert(window, "Error: UserID empty wtf.");
+            var keyDetails = EnigGetKeyDetails(sigListStr); // ...parse the key data into a format we can use
+            if (keyDetails.gUserId == "") { // Check if a UserId was found, abort if it was not
+              Ec.alert(window, "No user ID found for the Key you have signed. Unable to create Mail.");
+              return true;
             }
           }
           else {
-            Ec.alert(window, Ec.getString("An error occured while querying the Key Data"));
+            Ec.alert(window, Ec.getString("An error occured while querying the Key Data")); // TODO: Add this in localization files
             return true;
           }
           Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Setting up Fields for eMail\n");
+          // Set up mail data
           fields.to = keyDetails.gUserId;
-          fields.subject = "Your signed PGP Key " + keyId;
+          fields.subject = "Your signed PGP Key with the ID 0x" + keyId;
           fields.body = "Please find attached your signed PGP key with the ID 0x" + keyId + ".\n";
           params.type = Components.interfaces.nsIMsgCompType.New;
 
           /**
            * Attach Pubkey
-           * Copied and slightly modified from enigmailMsgComposeOverlay.js:517
+           * Copied and slightly modified from enigmailMsgComposeOverlay.js, function extractAndAttachkey
            */
           Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Creating Tempfile \n");
           var tmpDir=Ec.getTempDir();
@@ -202,11 +214,16 @@ function onAccept() {
           /**
            * End Attachment code
            */
+          // Set Mail format to plain text, for compatibility
           params.format = Components.interfaces.nsIMsgCompFormat.PlainText;
           params.composeFields = fields;
+          // Spawn message window
           MailServices.compose.OpenComposeWindowWithParams(null, params);
         }
-
+        else {
+          Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Not sending signed Pubkey, saving choice." + "\n");
+          EnigSetPref("sendSignedPubkey", false);
+        }
         window.arguments[1].refresh = true;
       }
       window.close();
