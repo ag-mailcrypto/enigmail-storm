@@ -35,6 +35,9 @@
 
 Components.utils.import("resource://enigmail/enigmailCommon.jsm");
 Components.utils.import("resource://enigmail/keyManagement.jsm");
+Components.utils.import("resource:///modules/mailServices.js");
+Components.utils.import("resource://gre/modules/NetUtil.jsm"); // TODO: Check if needed
+Components.utils.import("resource:///modules/gloda/mimemsg.js"); // TODO: Check if needed
 const Ec = EnigmailCommon;
 
 
@@ -103,6 +106,11 @@ function onAccept() {
   var trustLevel = document.getElementById("trustLevel");
   var localSig = document.getElementById("localSig");
   var signWithKey = document.getElementById("signWithKey");
+  var keyId = window.arguments[0].keyId;
+
+  var exitCodeObj = new Object();
+  var statusFlagsObj = new Object();
+  var errorMsgObj = new Object();
 
   var enigmailSvc = Ec.getService(window);
   if (!enigmailSvc) {
@@ -110,7 +118,7 @@ function onAccept() {
     return true;
   }
 
-  EnigmailKeyMgmt.signKey(window,
+  /* EnigmailKeyMgmt.signKey(window,
     "0x"+signWithKey.selectedItem.value,
     window.arguments[0].keyId,
     localSig.checked,
@@ -120,12 +128,40 @@ function onAccept() {
         Ec.alert(window, Ec.getString("signKeyFailed")+"\n\n"+errorMsg);
       }
       else {
+        if (document.getElementById("mailSig").checked) {
+          Ec.alert(window, "Signing succeeded. Herp Derp.");
+        }
         window.arguments[1].refresh = true;
       }
       window.close();
     }
-  );
-
+  ); */
+  Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Preparing Message\n");
+  let fields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
+               .createInstance(Components.interfaces.nsIMsgCompFields);
+  let params = Components.classes["@mozilla.org/messengercompose/composeparams;1"]
+               .createInstance(Components.interfaces.nsIMsgComposeParams);
+  // TODO: Select sender account based on signing key
+  // TODO: Select recipient based on signed key
+  // TODO: Set Mail to automatically be encrypted (and signed?)
+  Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data for " + keyId + ": enigmailSvc\n");
+  var sigListStr = enigmailSvc.getKeySig("0x"+keyId, exitCodeObj, errorMsgObj);
+  if (exitCodeObj.value == 0) {
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data: EnigGetKeyDetails\n");
+    var keyDetails = EnigGetKeyDetails(sigListStr);
+    // TODO: Check if result is empty
+  }
+  else {
+    Ec.alert(window, Ec.getString("An error occured while querying the Key Data"));
+    return true;
+  }
+  fields.to = keyDetails.gUserId;
+  fields.subject = "Your signed PGP Key " + keyId;
+  fields.body = "Please find attached your signed PGP key.\n\n";
+  params.type = Components.interfaces.nsIMsgCompType.New;
+  params.format = Components.interfaces.nsIMsgCompFormat.Default;
+  params.composeFields = fields;
+  MailServices.compose.OpenComposeWindowWithParams(null, params);
   return false; // wait with closing until subprocess terminated
 }
 

@@ -399,6 +399,7 @@
 <!ENTITY enigmail.sKeyDlg.casualCheck.label        "I have done casual checking">
 <!ENTITY enigmail.sKeyDlg.carefulCheck.label       "I have done very careful checking">
 <!ENTITY enigmail.sKeyDlg.createLocal.label        "Local signature (cannot be exported)">
+<!ENTITY enigmail.sKeyDlg.mailPubkey.label         "Send signed key to owner">
 
 <!ENTITY enigmail.addUidDlg.title                  "OpenPGP - Add User ID">
 <!ENTITY enigmail.addUidDlg.name.label             "Name">
