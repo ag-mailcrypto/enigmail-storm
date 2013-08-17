@@ -128,40 +128,84 @@ function onAccept() {
         Ec.alert(window, Ec.getString("signKeyFailed")+"\n\n"+errorMsg);
       }
       else {
-        if (document.getElementById("mailSig").checked) {
-          Ec.alert(window, "Signing succeeded. Herp Derp.");
-        }
         window.arguments[1].refresh = true;
       }
       window.close();
     }
   ); */
-  Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Preparing Message\n");
-  let fields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
-               .createInstance(Components.interfaces.nsIMsgCompFields);
-  let params = Components.classes["@mozilla.org/messengercompose/composeparams;1"]
-               .createInstance(Components.interfaces.nsIMsgComposeParams);
-  // TODO: Select sender account based on signing key
-  // TODO: Select recipient based on signed key
-  // TODO: Set Mail to automatically be encrypted (and signed?)
-  Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data for " + keyId + ": enigmailSvc\n");
-  var sigListStr = enigmailSvc.getKeySig("0x"+keyId, exitCodeObj, errorMsgObj);
-  if (exitCodeObj.value == 0) {
-    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data: EnigGetKeyDetails\n");
-    var keyDetails = EnigGetKeyDetails(sigListStr);
-    // TODO: Check if result is empty
+  if (document.getElementById("mailSig").checked) {
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Preparing Message\n");
+    let fields = Components.classes["@mozilla.org/messengercompose/composefields;1"]
+                 .createInstance(Components.interfaces.nsIMsgCompFields);
+    let params = Components.classes["@mozilla.org/messengercompose/composeparams;1"]
+                 .createInstance(Components.interfaces.nsIMsgComposeParams);
+    // TODO: Select sender account based on signing key
+    // TODO: Set Mail to automatically be encrypted (and signed?)
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data for " + keyId + ": enigmailSvc\n");
+    var sigListStr = enigmailSvc.getKeySig("0x"+keyId, exitCodeObj, errorMsgObj);
+    if (exitCodeObj.value == 0) {
+      Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Retrieving Key Data: EnigGetKeyDetails\n");
+      var keyDetails = EnigGetKeyDetails(sigListStr);
+      // TODO: Check if result is empty
+    }
+    else {
+      Ec.alert(window, Ec.getString("An error occured while querying the Key Data"));
+      return true;
+    }
+    fields.to = keyDetails.gUserId;
+    fields.subject = "Your signed PGP Key " + keyId;
+    fields.body = "Please find attached your signed PGP key with the ID 0x" + keyID + ".\n";
+    params.type = Components.interfaces.nsIMsgCompType.New;
+
+    /**
+     * Attach Pubkey
+     * Copied and slightly modified from enigmailMsgComposeOverlay.js:517
+     */
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Creating Tempfile \n");
+    var tmpDir=Ec.getTempDir();
+    try {
+      var tmpFile = Components.classes[Ec.LOCAL_FILE_CONTRACTID].createInstance(Ec.getLocalFileApi());
+      tmpFile.initWithPath(tmpDir);
+      if (!(tmpFile.isDirectory() && tmpFile.isWritable())) {
+        Ec.alert(window, Ec.getString("noTempDir"));
+        return null;
+      }
+    }
+    catch (ex) {
+      Ec.writeException("enigmailSignKeyDlg.js: onAccept: ", ex);
+    }
+    tmpFile.append("key.asc");
+    tmpFile.createUnique(Components.interfaces.nsIFile.NORMAL_FILE_TYPE, 0600);
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Extracting Key \n");
+    // save file
+
+    enigmailSvc.extractKey(window, 0, keyId, tmpFile /*.path */, exitCodeObj, errorMsgObj);
+    if (exitCodeObj.value != 0) {
+      Ec.alert(window, errorMsgObj.value);
+      return  null;
+    }
+
+    // create attachment
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Create Attachment \n");
+    var ioServ = Components.classes[Ec.IOSERVICE_CONTRACTID].getService(Components.interfaces.nsIIOService);
+    var tmpFileURI = ioServ.newFileURI(tmpFile);
+    var keyAttachment = Components.classes["@mozilla.org/messengercompose/attachment;1"].createInstance(Components.interfaces.nsIMsgAttachment);
+    keyAttachment.url = tmpFileURI.spec;
+    keyAttachment.name = "0x"+keyId+".asc";
+    keyAttachment.temporary = true;
+    keyAttachment.contentType = "application/pgp-keys";
+
+    Ec.DEBUG_LOG("enigmailSignKeyDlg.js: onAccept: Attach Attachment to Mail \n");
+    // add attachment to msg
+    fields.addAttachment(keyAttachment);
+    gContentChanged = true;
+    /**
+     * End Attachment code
+     */
+    params.format = Components.interfaces.nsIMsgCompFormat.PlainText;
+    params.composeFields = fields;
+    MailServices.compose.OpenComposeWindowWithParams(null, params);
   }
-  else {
-    Ec.alert(window, Ec.getString("An error occured while querying the Key Data"));
-    return true;
-  }
-  fields.to = keyDetails.gUserId;
-  fields.subject = "Your signed PGP Key " + keyId;
-  fields.body = "Please find attached your signed PGP key.\n\n";
-  params.type = Components.interfaces.nsIMsgCompType.New;
-  params.format = Components.interfaces.nsIMsgCompFormat.Default;
-  params.composeFields = fields;
-  MailServices.compose.OpenComposeWindowWithParams(null, params);
   return false; // wait with closing until subprocess terminated
 }
 
