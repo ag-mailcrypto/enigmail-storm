@@ -167,6 +167,7 @@ function onAccept() {
           fields.to = keyDetails.gUserId;
           fields.subject = "Your signed PGP Key with the ID 0x" + keyId;
           fields.body = "Please find attached your signed PGP key with the ID 0x" + keyId + ".\n";
+          fields.otherRandomHeaders += "x-enigmail-draft-status: "+ Components.interfaces.nsIEnigmail.SEND_ENCRYPTED +"\r\n";
           params.type = Components.interfaces.nsIMsgCompType.New;
 
           /**
