@@ -2,6 +2,7 @@ enigmail.jar:
 	content/enigmail/columnOverlay.xul             (content/columnOverlay.xul)
 	content/enigmail/columnOverlay.js              (content/columnOverlay.js)
 	content/enigmail/enigmailCommon.js             (content/enigmailCommon.js)
+	content/enigmail/unitTestCommon.js             (content/unitTestCommon.js)
 	content/enigmail/enigmailAbCardViewOverlay.xul (content/enigmailAbCardViewOverlay.xul)
 	content/enigmail/enigmailAbContactsPanel.xul   (content/enigmailAbContactsPanel.xul)
 	content/enigmail/enigmailAbOverlay.js          (content/enigmailAbOverlay.js)
