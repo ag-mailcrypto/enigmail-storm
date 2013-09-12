@@ -34,7 +34,7 @@
 
 Components.utils.import("resource://enigmail/enigmailCommon.jsm");
 Components.utils.import("resource://enigmail/keyManagement.jsm");
-const Ec = EnigmailCommon;
+var Ec = EnigmailCommon;
 
 var gAlertPopUpIsOpen = false;
 
@@ -181,19 +181,28 @@ function onAccept() {
   return false; /* don't close the window now. Wait for calling window.close() explicitly. */
 }
 
+/**
+ * Check if the user input is valid, namely if the duration for this key makes sense.
+ *
+ * @return Boolean True: user input is ok, false: user input is invalid.
+ */
 function checkExpirationDate() {
   Ec.DEBUG_LOG("enigmailEditKeyExpiryDlg.js: checkExpirationDate()\n");
 
   var noExpiry = document.getElementById("noExpiry");
   var expireInput = document.getElementById("expireInput");
   var timeScale = document.getElementById("timeScale");
-
+  var returnValue = true;
+    
   var expiryTime = 0;
+  var intRegex = /^\s*-?\d+\s*$/;
+      
   if (! noExpiry.checked) {
     expiryTime = Number(expireInput.value) * Number(timeScale.value);
     if (expiryTime > 90*365) {
       /* alert("You cannot create a key that expires in more than 100 years."); */
       /* @TODO GPG throws an error already when using 95 years (multiplying 365 and 95) */
+      returnValue = false;
       if (gAlertPopUpIsOpen !== true) {
         gAlertPopUpIsOpen = true
         Ec.setTimeout(function () {
@@ -201,21 +210,31 @@ function checkExpirationDate() {
           gAlertPopUpIsOpen = false
         }, 10);
       }
-      return false;
+    }
+    else if (!intRegex.test(expireInput.value)) {
+      returnValue = false;
+      if (gAlertPopUpIsOpen !== true) {
+        gAlertPopUpIsOpen = true;
+        setTimeout(function() {
+          Ec.alert(window, Ec.getString("expiryInvalidChars")+"\n");
+          gAlertPopUpIsOpen = false;
+        }, 10);
+      }
     }
     else if (! (expiryTime > 0)) {
       /* alert("Your key must be valid for at least one day."); */
+      returnValue = false;
       if (gAlertPopUpIsOpen !== true) {
-        gAlertPopUpIsOpen = true
-        Ec.setTimeout(function () {
+        gAlertPopUpIsOpen = true;
+        setTimeout(function() {
           Ec.alert(window, Ec.getString("expiryTooShort")+"\n");
-          gAlertPopUpIsOpen = false
+          gAlertPopUpIsOpen = false;
         }, 10);
       }
-      return false;
     }
   }
-  return true;
+  return returnValue;
+;
 }
 
 function onNoExpiry() {
