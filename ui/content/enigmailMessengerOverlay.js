@@ -18,7 +18,7 @@
  * Copyright (C) 2001 Ramalingam Saravanan. All Rights Reserved.
  *
  * Contributor(s):
- *   Patrick Brunschwig <patrick@mozilla-enigmail.org>
+ *   Patrick Brunschwig <patrick@enigmail.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -165,6 +165,12 @@ Enigmail.msg = {
     };
 
     top.controllers.appendController(treeController);
+
+    EnigmailCommon.initPrefService();
+    if (EnigmailCommon.getPref("configuredVersion") == "") {
+      EnigmailCommon.setPref("configuredVersion", EnigmailCommon.getVersion());
+      EnigmailFuncs.openSetupWizard(window);
+    }
   },
 
   viewSecurityInfo: function (event, displaySmimeMsg)
@@ -704,7 +710,7 @@ Enigmail.msg = {
             Enigmail.msg.verifyEmbeddedMsg(window, mailNewsUrl, msgWindow, msgUriSpec, contentEncoding, event);
           }
           else {
-            var verifier = EnigmailVerify.newVerfier(false, mailNewsUrl);
+            var verifier = EnigmailVerify.newVerifier(false, mailNewsUrl, false);
             verifier.startStreaming(window, msgWindow, msgUriSpec);
 
           }
@@ -1623,7 +1629,7 @@ Enigmail.msg = {
 
         let enableSubpartTreatment=(msigned > 0);
 
-        var verifier = EnigmailVerify.newVerfier(enableSubpartTreatment, callbackArg.mailNewsUrl);
+        var verifier = EnigmailVerify.newVerifier(enableSubpartTreatment, callbackArg.mailNewsUrl, true);
         verifier.verifyData(callbackArg.window, callbackArg.msgWindow, callbackArg.msgUriSpec, callbackArg.data);
 
         return;

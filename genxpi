@@ -16,7 +16,7 @@
 # The Original Code is Enigmail.
 #
 # The Initial Developer of the Original Code is Patrick Brunschwig.
-# Portions created by Patrick Brunschwig <patrick@mozilla-enigmail.org> are
+# Portions created by Patrick Brunschwig <patrick@enigmail.net> are
 # Copyright (C) 2004 Patrick Brunschwig. All Rights Reserved.
 #
 # Contributor(s):
@@ -140,6 +140,7 @@ zip ${xpiFile} \
     modules/keyManagement.jsm \
     modules/mimeVerify.jsm \
     modules/installGnuPG.jsm \
+    modules/gpgAgentHandler.jsm \
     modules/commonFuncs.jsm \
     modules/subprocess.jsm \
     modules/subprocess_worker_win.js \

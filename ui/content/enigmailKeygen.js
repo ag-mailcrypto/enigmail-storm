@@ -18,7 +18,7 @@
  * Copyright (C) 2002 Ramalingam Saravanan. All Rights Reserved.
  *
  * Contributor(s):
- * Patrick Brunschwig <patrick@mozilla-enigmail.org>
+ * Patrick Brunschwig <patrick@enigmail.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -125,13 +125,17 @@ function enigmailKeygenUpdate(getPrefs, setPrefs) {
 }
 
 function enigmailKeygenTerminate(exitCode) {
-   DEBUG_LOG("enigmailKeygen.js: Terminate:\n");
+  DEBUG_LOG("enigmailKeygen.js: Terminate:\n");
 
-   var curId = gUsedId;
+  var curId = gUsedId;
 
-   gKeygenRequest = null;
+  gKeygenRequest = null;
 
-   if ((! gGeneratedKey) || gGeneratedKey == KEYGEN_CANCELLED) return;
+  if ((! gGeneratedKey) || gGeneratedKey == KEYGEN_CANCELLED) {
+    if (! gGeneratedKey)
+      EnigAlert(EnigGetString("keyGenFailed"));
+    return;
+  }
 
   var progMeter = document.getElementById("keygenProgress");
   progMeter.setAttribute("value", 100);

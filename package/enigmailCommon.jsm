@@ -14,7 +14,7 @@
  * The Original Code is Enigmail.
  *
  * The Initial Developer of the Original Code is Patrick Brunschwig.
- * Portions created by Patrick Brunschwig <patrick@mozilla-enigmail.org> are
+ * Portions created by Patrick Brunschwig <patrick@enigmail.net> are
  * Copyright (C) 2010 Patrick Brunschwig. All Rights Reserved.
  *
  * Contributor(s):
@@ -557,6 +557,7 @@ var EnigmailCommon = {
 
     }
   },
+
 
   promptValue: function (win, mesg, valueObj)
   {
@@ -1399,7 +1400,7 @@ var EnigmailCommon = {
         return str;
     }
 
-    var rStr = getQuoted(this.getFilePathDesc(command));
+    var rStr = getQuoted(this.getFilePathDesc(command)) +" ";
 
     let i;
     rStr += [getQuoted(args[i]) for (i in args)].join(" ").replace(/\\\\/g, '\\');
@@ -1988,12 +1989,25 @@ var EnigmailCommon = {
     var success;
 
     var promptService = Cc[NS_PROMPTSERVICE_CONTRACTID].getService(Ci.nsIPromptService);
-    success = promptService.promptPassword(domWindow,
+
+    try {
+      success = promptService.promptPassword(domWindow,
                                            this.getString("enigPrompt"),
                                            promptMsg,
                                            passwdObj,
                                            checkMsg,
                                            checkObj);
+    }
+    catch(ex) {
+      // domWindow is not always available
+      success = promptService.promptPassword(null,
+                                           this.getString("enigPrompt"),
+                                           promptMsg,
+                                           passwdObj,
+                                           checkMsg,
+                                           checkObj);
+
+    }
 
     if (!success)
       return false;

@@ -14,7 +14,7 @@
  * The Original Code is Enigmail.
  *
  * The Initial Developer of the Original Code is Patrick Brunschwig.
- * Portions created by Patrick Brunschwig <patrick@mozilla-enigmail.org> are
+ * Portions created by Patrick Brunschwig <patrick@enigmail.net> are
  * Copyright (C) 2005 Patrick Brunschwig. All Rights Reserved.
  *
  * Contributor(s):
@@ -34,6 +34,7 @@
 
 Components.utils.import("resource://enigmail/enigmailCommon.jsm");
 Components.utils.import("resource://enigmail/keyManagement.jsm");
+Components.utils.import("resource://enigmail/installGnuPG.jsm");
 
 // const Ec is already defined in enigmailKeygen.js
 
@@ -44,7 +45,7 @@ var gPubkeyFile = {value: null};
 var gSeckeyFile = {value: null};
 var gCreateNewKey=false;
 var gPrefEnigmail;
-
+var gDownoadObj = null;
 
 EnigInitCommon("enigmailSetupWizard");
 
@@ -73,7 +74,14 @@ function onCancel() {
     }
   }
   else {
-    return (EnigLongAlert(EnigGetString("setupWizard.reallyCancel"), null, EnigGetString("dlg.button.close"), EnigGetString("dlg.button.continue")) == 0);
+    var r=(EnigLongAlert(EnigGetString("setupWizard.reallyCancel"), null, EnigGetString("dlg.button.close"), EnigGetString("dlg.button.continue")) == 0);
+
+    if (r && gDownoadObj) {
+      gDownoadObj.abort();
+      gDownoadObj = null;
+    }
+
+    return r;
   }
 }
 
@@ -102,6 +110,9 @@ function onNext() {
       wizardSelKey();
       break;
     case "pgWelcome":
+      checkGnupgInstallation();
+      break;
+    case "pgInstallGnuPG":
       checkIdentities();
       break;
     case "pgSettings":
@@ -110,17 +121,20 @@ function onNext() {
       return checkPassphrase();
     }
   }
-
   return true;
 }
 
+function getWizard() {
+  return document.getElementById("enigmailSetupWizard");
+}
+
 function setNextPage(pageId) {
-  var wizard = document.getElementById("enigmailSetupWizard");
+  var wizard = getWizard();
   wizard.currentPage.next = pageId;
 }
 
 function disableNext(disable) {
-  var wizard = document.getElementById("enigmailSetupWizard");
+  var wizard = getWizard();
   wizard.getButton("next").disabled = disable;
 }
 
@@ -135,6 +149,130 @@ function countSelectedId() {
     node = node.nextSibling;
   }
   return idCount;
+}
+
+function onShowPgInstallGnuPG() {
+  var ok = enigGetSvc(true);
+  disableNext(!ok);
+
+  if (InstallGnuPG.checkAvailability()) {
+    document.getElementById("installBox").removeAttribute("collapsed");
+  }
+  else {
+    document.getElementById("findGpgBox").removeAttribute("collapsed");
+  }
+}
+
+function checkGnupgInstallation() {
+  var wizard = getWizard();
+  if (wizard.currentPage.next != "pgNoStart") {
+
+    var s = enigGetSvc(true);
+    if (s) {
+      setNextPage("pgSelectId");
+      checkIdentities();
+    }
+    else {
+      setNextPage("pgInstallGnuPG");
+      disableNext(false);
+    }
+  }
+}
+
+function installGnuPG() {
+  var progressBox = document.getElementById("progressBox");
+  var downloadProgress = document.getElementById("downloadProgress");
+  var installLabel = document.getElementById("installLabel");
+  var installProgress = document.getElementById("installProgress");
+  var btnInstallGnupg = document.getElementById("btnInstallGnupg");
+  var btnLocateGnuPG = document.getElementById("btnLocateGnuPG");
+
+  btnInstallGnupg.setAttribute("disabled", true);
+  btnLocateGnuPG.setAttribute("disabled", true);
+  progressBox.removeAttribute("collapsed");
+
+  InstallGnuPG.startInstaller({
+    onStart: function(reqObj) {
+      gDownoadObj = reqObj;
+    },
+
+    onError: function (errorMessage) {
+      if (typeof(errorMessage) == "object") {
+        var s = EnigGetString("errorType."+errorMessage.type);
+        if (errorMessage.type.startsWith("Security")) {
+          s += "\n"+ EnigGetString("setupWizard.downloadForbidden");
+        }
+        else
+          s += "\n"+ EnigGetString("setupWizard.downloadImpossible");
+
+        EnigAlert(s);
+      }
+      else {
+        EnigAlert(EnigGetString(errorMessage));
+      }
+
+      this.returnToDownload();
+    },
+
+    onWarning: function(message) {
+      var ret = false;
+      if (message == "hashSumMismatch") {
+        ret = EnigConfirm(EnigGetString("setupWizard.hashSumError"), EnigGetString("dlgYes"),
+                  EnigGetString("dlgNo"));
+      }
+
+      if (! ret) this.returnToDownload();
+
+      return ret;
+    },
+
+    onProgress: function(event) {
+      if (event.lengthComputable) {
+        var percentComplete = event.loaded / event.total * 100;
+        downloadProgress.setAttribute("value", percentComplete);
+      }
+      else {
+        downloadProgress.setAttribute("mode", "undetermined");
+      }
+    },
+
+    onDownloaded: function() {
+      gDownoadObj = null;
+      downloadProgress.setAttribute("value", 100);
+      installLabel.removeAttribute("collapsed");
+      installProgress.removeAttribute("collapsed");
+    },
+
+
+    returnToDownload: function() {
+      btnInstallGnupg.removeAttribute("disabled");
+      btnLocateGnuPG.removeAttribute("disabled");
+      progressBox.setAttribute("collapsed", "true");
+      downloadProgress.setAttribute("value", 0);
+      installLabel.setAttribute("collapsed", "true");
+      installProgress.setAttribute("collapsed", "true");
+    },
+
+    onLoaded: function() {
+      installProgress.setAttribute("value", 100);
+      installProgress.setAttribute("mode", "determined");
+
+      document.getElementById("installComplete").removeAttribute("collapsed");
+
+      var origPath = EnigGetPref("agentPath");
+      EnigSetPref("agentPath", "");
+
+      var s = enigGetSvc(true);
+      if (s) {
+        disableNext(false);
+      }
+      else {
+        EnigSetPref("agentPath", origPath);
+        this.returnToDownload();
+        EnigAlert(EnigGetString("setupWizard.installFailed"));
+      }
+    }
+  });
 }
 
 function browseKeyFile(referencedId, referencedVar) {
@@ -157,7 +295,7 @@ function importKeyFiles() {
   var importedKeys;
   var exitCode;
 
-  var enigmailSvc = enigGetSvc();
+  var enigmailSvc = enigGetSvc(false);
   if (! enigmailSvc) return false;
 
   var errorMsgObj = {};
@@ -297,7 +435,7 @@ function wizardSetFocus() {
 function loadKeys() {
   var wizard = document.getElementById("enigmailSetupWizard");
 
-  var enigmailSvc = enigGetSvc();
+  var enigmailSvc = enigGetSvc(false);
 
   if (!enigmailSvc) {
     return false;
@@ -337,9 +475,11 @@ function loadKeys() {
   return true;
 }
 
-function enigGetSvc() {
+function enigGetSvc(resetCheck) {
   // Lazy initialization of enigmail JS component (for efficiency)
   // variant of GetEnigmailSvc function
+
+  if (resetCheck) gEnigmailSvc = null;
 
   if (gEnigmailSvc) {
     return gEnigmailSvc.initialized ? gEnigmailSvc : null;
@@ -355,7 +495,7 @@ function enigGetSvc() {
 
   DEBUG_LOG("enigmailWizard.js: gEnigmailSvc = "+gEnigmailSvc+"\n");
 
-  while (!gEnigmailSvc.initialized) {
+  if (!gEnigmailSvc.initialized) {
     // Try to initialize enigmail
 
     if (! gPrefEnigmail) {
@@ -374,19 +514,8 @@ function enigGetSvc() {
 
     } catch (ex) {
 
-      // Display initialization error alert
-      EnigAlert(EnigGetString("setupWizard.locateGpg"));
-      var gpgPath = wizardLocateGpg();
-      if (! gpgPath) {
-        if (onCancel()) {
-          window.close();
-          return null;
-        }
-      }
-      else {
-        EnigSetPref("agentPath", EnigGetFilePath(gpgPath));
-      }
-    }
+      return null;
+     }
 
     var configuredVersion = EnigGetPref("configuredVersion");
 
@@ -397,16 +526,31 @@ function enigGetSvc() {
   return gEnigmailSvc.initialized ? gEnigmailSvc : null;
 }
 
+
+
 function wizardLocateGpg() {
-  var fileName="gpg";
-  var ext="";
-  if (navigator.platform.search(/Win/i) == 0) {
-    ext=".exe";
+  var fileName = "gpg";
+  var ext = "";
+  if (Ec.isDosLike()) {
+    ext = ".exe";
   }
   var filePath = EnigFilePicker(EnigGetString("locateGpg"),
                            "", false, ext,
                            fileName+ext, null);
-  return filePath;
+
+  if (filePath) {
+    EnigSetPref("agentPath", EnigGetFilePath(filePath));
+    var svc = enigGetSvc(true);
+
+    if (! svc) {
+      EnigAlert(EnigGetString("setupWizard.invalidGpg"));
+    }
+    else {
+      document.getElementById("gpgFoundBox").removeAttribute("collapsed");
+      disableNext(false);
+    }
+  }
+
 }
 
 function checkPassphrase() {
@@ -766,7 +910,7 @@ function wizardKeygenTerminate(exitCode) {
 function wizardKeygenCleanup() {
   DEBUG_LOG("enigmailSetupWizard.js: wizardKeygenCleanup\n");
   enigmailKeygenCloseRequest();
-  var enigmailSvc = enigGetSvc();
+  var enigmailSvc = enigGetSvc(false);
   enigmailSvc.invalidateUserIdList();
 
   var wizard = document.getElementById("enigmailSetupWizard");

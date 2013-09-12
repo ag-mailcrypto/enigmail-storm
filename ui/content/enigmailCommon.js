@@ -18,7 +18,7 @@
  * Copyright (C) 2001 Ramalingam Saravanan. All Rights Reserved.
  *
  * Contributor(s):
- * Patrick Brunschwig <patrick@mozilla-enigmail.org>
+ * Patrick Brunschwig <patrick@enigmail.net>
  * Marius Stübs <marius.stuebs@riseup.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
@@ -471,87 +471,6 @@ function EnigGetOS () {
 
 function EnigGetVersion() {
   return EnigmailCommon.getVersion();
-}
-
-function EnigDisplayPrefs(showDefault, showPrefs, setPrefs) {
-  DEBUG_LOG("enigmailCommon.js: EnigDisplayPrefs\n");
-
-  var obj = new Object;
-  var prefList = EnigmailCommon.prefBranch.getChildList("",obj);
-
-  for (var prefItem in prefList) {
-    var prefName=prefList[prefItem];
-    var prefElement = document.getElementById("enigmail_"+prefName);
-
-    if (prefElement) {
-      var prefType = EnigmailCommon.prefBranch.getPrefType(prefName);
-      var prefValue;
-      if (showDefault) {
-        prefValue = EnigGetDefaultPref(prefName);
-      }
-      else {
-        prefValue = EnigGetPref(prefName);
-      }
-
-      DEBUG_LOG("enigmailCommon.js: EnigDisplayPrefs: "+prefName+"="+prefValue+"\n");
-
-      switch (prefType) {
-      case EnigmailCommon.prefBranch.PREF_BOOL:
-        if (showPrefs) {
-          if (prefElement.getAttribute("invert") == "true") {
-            prefValue = ! prefValue;
-          }
-
-          if (prefValue) {
-            prefElement.setAttribute("checked", "true");
-          } else {
-            prefElement.removeAttribute("checked");
-          }
-        }
-
-        if (setPrefs) {
-
-          if (prefElement.getAttribute("invert") == "true") {
-            if (prefElement.checked) {
-              EnigSetPref(prefName, false);
-            } else {
-              EnigSetPref(prefName, true);
-            }
-          }
-          else {
-            if (prefElement.checked) {
-              EnigSetPref(prefName, true);
-            } else {
-              EnigSetPref(prefName, false);
-            }
-          }
-        }
-
-        break;
-
-      case EnigmailCommon.prefBranch.PREF_INT:
-        if (showPrefs)
-          prefElement.value = prefValue;
-
-        if (setPrefs) {
-          try {
-            EnigSetPref(prefName, 0+prefElement.value);
-          } catch (ex) {}
-        }
-        break;
-
-      case EnigmailCommon.prefBranch.PREF_STRING:
-        if (showPrefs)
-          prefElement.value = prefValue;
-        if (setPrefs)
-          EnigSetPref(prefName, prefElement.value);
-        break;
-
-      default:
-        DEBUG_LOG("enigmailCommon.js: EnigDisplayPrefs: "+prefName+" does not have a type?!\n");
-      }
-    }
-  }
 }
 
 function EnigFilePicker(title, displayDir, save, defaultExtension, defaultName, filterPairs) {

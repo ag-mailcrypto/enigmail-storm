@@ -91,15 +91,8 @@ PgpMimeDecrypt.prototype = {
     this.outQueue = "";
     this.statusStr = "";
     this.boundary = getBoundary(this.mimeSvc.contentType);
-    var statusFlagsObj = {};
-    var errorMsgObj = {};
-    var windowManager = Cc[APPSHELL_MEDIATOR_CONTRACTID].getService(Ci.nsIWindowMediator);
-    var win = windowManager.getMostRecentWindow(null);
-    this.verifier = EnigmailVerify.newVerfier(true);
+    this.verifier = EnigmailVerify.newVerifier(true, undefined, false);
     this.verifier.setMsgWindow(this.msgWindow, this.msgUriSpec);
-    this.verifier.onStartRequest(true);
-    this.proc = Ec.decryptMessageStart(win, false, false, this,
-                    statusFlagsObj, errorMsgObj);
     if (uri != null)
       this.uri = uri.QueryInterface(Ci.nsIURI).clone();
   },
@@ -127,11 +120,11 @@ PgpMimeDecrypt.prototype = {
         }
 
         if (this.matchedPgpDelimiter == 1) {
-          this.writeToPipe(data);
+          this.cacheData(data);
 
           if (data.indexOf("-----END PGP MESSAGE-----") == 0) {
             DEBUG_LOG("mimeDecrypt.js: onDataAvailable: found PGP end delimiter\n");
-            this.writeToPipe("\n");
+            this.cacheData("\n");
             this.matchedPgpDelimiter = 2;
           }
         }
@@ -139,18 +132,12 @@ PgpMimeDecrypt.prototype = {
     }
   },
 
-  // (delayed) writing to subprocess
-  writeToPipe: function(str) {
+  // cache encrypted data for writing to subprocess
+  cacheData: function(str) {
     if (gDebugLogLevel > 4)
-      DEBUG_LOG("mimeDecrypt.js: writeToPipe: "+str.length+"\n");
+      DEBUG_LOG("mimeDecrypt.js: cacheData: "+str.length+"\n");
 
-    if (this.pipe) {
-      this.outQueue += str;
-      if (this.outQueue.length > maxBufferLen)
-        this.flushInput();
-    }
-    else
-      this.outQueue += str;
+    this.outQueue += str;
   },
 
   flushInput: function() {
@@ -167,6 +154,42 @@ PgpMimeDecrypt.prototype = {
     DEBUG_LOG("mimeDecrypt.js: onStopRequest\n");
     --gNumProc;
     if (! this.initOk) return;
+
+    this.msgWindow = EnigmailVerify.lastMsgWindow;
+    this.msgUriSpec = EnigmailVerify.lastMsgUri;
+
+    if (this.uri) {
+      // return if not decrypting currently displayed message (except if
+      // printing, replying, etc)
+      try {
+        if (this.uri.spec.search(/[\&\?]header=[a-zA-Z0-9]*$/) < 0) {
+
+          if (this.uri.spec.search(/[\&\?]header=filter\&.*$/) > 0)
+            return;
+
+          if (this.msgUriSpec) {
+            var messenger = Cc["@mozilla.org/messenger;1"].getService(Ci.nsIMessenger);
+            var msgSvc = messenger.messageServiceFromURI(this.msgUriSpec);
+
+            var url= {};
+            msgSvc.GetUrlForUri(this.msgUriSpec, url, null)
+            if (url.value.spec != this.uri.spec)
+              return;
+          }
+        }
+      }
+      catch(ex) {
+        Ec.writeException("mimeDecrypt.js", ex);
+      }
+    }
+
+    var statusFlagsObj = {};
+    var errorMsgObj = {};
+    var windowManager = Cc[APPSHELL_MEDIATOR_CONTRACTID].getService(Ci.nsIWindowMediator);
+    var win = windowManager.getMostRecentWindow(null);
+    this.verifier.onStartRequest(true);
+    this.proc = Ec.decryptMessageStart(win, false, false, this,
+                    statusFlagsObj, errorMsgObj);
 
     if (! this.proc) return;
     this.flushInput();
@@ -196,6 +219,7 @@ PgpMimeDecrypt.prototype = {
 
   displayStatus: function() {
     DEBUG_LOG("mimeDecrypt.js: displayStatus\n");
+
     if (this.exitCode == null || this.msgWindow == null || this.statusDisplayed)
       return;
 
@@ -273,11 +297,15 @@ PgpMimeDecrypt.prototype = {
           break;
         }
       }
-
     }
 
     gConv.setData(this.decryptedData, this.decryptedData.length);
-    this.mimeSvc.onDataAvailable(null, null, gConv, 0, this.decryptedData.length);
+    try {
+      this.mimeSvc.onDataAvailable(null, null, gConv, 0, this.decryptedData.length);
+    }
+    catch(ex) {
+      Ec.ERROR_LOG("mimeDecrypt.js: mimeSvc.onDataAvailable failed:\n"+ex.toString());
+    }
 
     this.verifier.onTextData(verifyData);
     this.verifier.onStopRequest();

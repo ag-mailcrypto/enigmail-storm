@@ -18,7 +18,7 @@
  * Copyright (C) 2001 Ramalingam Saravanan. All Rights Reserved.
  *
  * Contributor(s):
- * Patrick Brunschwig <patrick@mozilla-enigmail.org>
+ * Patrick Brunschwig <patrick@enigmail.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
  * either the GNU General Public License Version 2 or later (the "GPL"), or
@@ -50,7 +50,9 @@ interface nsIEnigmail : nsISupports
   readonly attribute string agentType;        /* always "gpg" */
   readonly attribute string agentVersion;     /* version string */
 
-  readonly attribute nsIFile agentPath;        /* executable path */
+  readonly attribute nsIFile agentPath;        /* executable path for gpg */
+  readonly attribute nsIFile gpgconfPath;      /* executable path for gpgconf */
+  readonly attribute nsIFile connGpgAgentPath; /* executable path for connect-gpg-agent */
 
   readonly attribute boolean initialized;
   attribute boolean initializationAttempted;

@@ -18,7 +18,7 @@
  * Copyright (C) 2001 Ramalingam Saravanan. All Rights Reserved.
  *
  * Contributor(s):
- *   Patrick Brunschwig <patrick@mozilla-enigmail.org>
+ *   Patrick Brunschwig <patrick@enigmail.net>
  *   Ludwig Hügelschäfer <ludwig@hammernoch.net>
  *
  * Alternatively, the contents of this file may be used under the terms of
@@ -46,6 +46,12 @@ catch (ex) {
 
 Components.utils.import("resource://enigmail/enigmailCommon.jsm");
 Components.utils.import("resource://enigmail/commonFuncs.jsm");
+
+try {
+  Components.utils.import("resource:///modules/MailUtils.js");
+}
+catch(ex) {}
+
 
 if (! Enigmail) var Enigmail = {};
 
@@ -686,6 +692,29 @@ Enigmail.msg = {
     this.editorInsertText(text);
   },
 
+
+  getMsgFolderFromUri:  function(uri, checkFolderAttributes)
+  {
+    let msgfolder = null;
+    if (typeof MailUtils != 'undefined') {
+      return MailUtils.getFolderForURI(uri, checkFolderAttributes);
+    }
+    try {
+      // Postbox, older versions of TB
+      let resource = GetResourceFromUri(uri);
+      msgfolder = resource.QueryInterface(Components.interfaces.nsIMsgFolder);
+      if (checkFolderAttributes) {
+        if (!(msgfolder && (msgfolder.parent || msgfolder.isServer))) {
+          msgfolder = null;
+        }
+      }
+    }
+    catch (ex) {
+       //dump("failed to get the folder resource\n");
+    }
+    return msgfolder;
+  },
+
   goAccountManager: function ()
   {
     EnigmailCommon.DEBUG_LOG("enigmailMsgComposeOverlay.js: Enigmail.msg.goAccountManager:\n");
@@ -705,7 +734,7 @@ Enigmail.msg = {
           folderURI=servers.GetElementAt(0).QueryInterface(Components.interfaces.nsIMsgIncomingServer).serverURI;
         }
 
-        server=GetMsgFolderFromUri(folderURI, true).server;
+        server=this.getMsgFolderFromUri(folderURI, true).server;
     } catch (ex) {}
     window.openDialog("chrome://enigmail/content/am-enigprefs-edit.xul", "", "dialog,modal,centerscreen", {identity: currentId, account: server});
     this.setIdentityDefaults();
@@ -1847,7 +1876,7 @@ Enigmail.msg = {
         }
         catch (ex) {}
       }
-    }https://addons.mozilla.org/en-US/developers/addon/enigmail/versions/1394284
+    }
     var exitCodeObj    = new Object();
     var statusFlagsObj = new Object();
     var errorMsgObj    = new Object();
