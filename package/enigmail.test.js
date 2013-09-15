@@ -129,6 +129,49 @@ function testImportPublicKey() {
 
 
 /**
+ * Import the test key, both public and private part.
+ * In the end, delete it.
+ */
+testImportPublicAndPrivateKey.priority = 'must';
+function testImportPublicAndPrivateKey() {
+  // The import action!
+  var errorMsgObj = {};
+  var interactive = false;
+  var exitCode = enigmailSvc.importKey(
+                    keyManagerDialog, 
+                    interactive, 
+                    testKeyPublicBlock + "\n" + testKeyPrivateBlock, 
+                    "", errorMsgObj);
+  assert.equals(0, exitCode);
+  
+  // After the import, check the properties of the test key in the key ring:
+  // - It has 2 additional identities
+  // - It has an image
+  // - It has 4 subkeys (including main key)
+  // - The private key is imported too.
+  var exitCodeObj = new Object();
+  var errorMsgObj = new Object();
+  var sigListStr = enigmailSvc.getKeySig("0x"+testKeyId, exitCodeObj, errorMsgObj);
+  assert.equals(0, exitCodeObj.value);
+
+  var keyDetails = keyManagerDialog.EnigGetKeyDetails(sigListStr); 
+  assert.isTrue(keyDetails.showPhoto, "Import of the photo failed");
+  assert.equals(2, keyDetails.uidList.length, "Import of the additional identities failed");
+  assert.equals(4, keyDetails.subkeyList.length, "Import of the subkeys failed");
+
+  // Make sure, that the testKey is in the list of secret keys.
+  var exitCodeObj = new Object();
+  var statusFlagsObj = new Object();
+  var errorMsgObj = new Object();
+  var secretSigListStr = enigmailSvc.getUserIdList(true, true, exitCodeObj, statusFlagsObj, errorMsgObj);
+  assert.contains('fpr:::::::::' + testKeyFingerprint, secretSigListStr, "Import of Secret Key failed");
+
+  // clean up: Delete imported test key.
+  keyManagerDialog.EnigmailKeyMgmt.deleteKey(window, "0x"+testKeyId, true);
+}
+
+
+/**
  * This helper function opens a dialog window and waits for it to load completely,
  *
  * @param Window The parent window
