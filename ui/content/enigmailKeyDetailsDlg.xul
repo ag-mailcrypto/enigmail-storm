@@ -56,6 +56,7 @@
 
 
   <script type="application/x-javascript" src="chrome://enigmail/content/enigmailCommon.js"/>
+  <script type="application/x-javascript" src="chrome://enigmail/content/unitTestCommon.js"/>
   <script type="application/x-javascript" src="chrome://enigmail/content/enigmailKeyDetailsDlg.js"/>
   <script type="application/x-javascript" src="chrome://enigmail/content/enigmailKeyManager.js"/>
 

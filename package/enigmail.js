@@ -1840,10 +1840,21 @@ Enigmail.prototype = {
     return keyBlock;
   },
 
-
-  // ExitCode == 0  => success
-  // ExitCode > 0   => error
-  // ExitCode == -1 => Cancelled by user
+  /**
+   * Import key into local key ring
+   *
+   * @param  WindowObj    parent     
+   * @param  Boolean      uiFlags    True when interactive resp. with user interface
+   * @param  String       msgText    Includes the armored openPGP block. 
+   *                                 Must contain a public key block. 
+   * @param  String       keyId      Optional: A 16-HEXdigit-String
+   * @param  errorMsgObj  ReturnObj
+   * @return Integer ExitCode
+   *  ExitCode == 0  => success
+   *  ExitCode > 0   => error
+   *  ExitCode == -1 => Cancelled by user
+   *
+   */
   importKey: function (parent, uiFlags, msgText, keyId, errorMsgObj) {
     Ec.DEBUG_LOG("enigmail.js: Enigmail.importKey: id="+keyId+", "+uiFlags+"\n");
 
