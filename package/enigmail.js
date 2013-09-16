@@ -1392,12 +1392,22 @@ Enigmail.prototype = {
   },
 
 
-  // Locates offsets bracketing PGP armored block in text,
-  // starting from given offset, and returns block type string.
-  // beginIndex = offset of first character of block
-  // endIndex = offset of last character of block (newline)
-  // If block is not found, the null string is returned;
-
+  /**
+   * Locates offsets bracketing PGP armored block in text,
+   * starting from given offset, and returns block type string.
+   *
+   * @param  String     text
+   * @param  Integer    offset
+   * @param  indentStr  Used in case of an openPGP-Block inside a replied e-mail.
+                        In most cases it would be "> " or ">> " or something like that
+                        where the block is intended by reply signs.
+   * @param  beginIndexObj  Returns an Integer value ; offset of first character of block
+   * @param  endIndexObj    Returns an Integer value ; offset of last character of block (newline)
+   *
+   * @return String  blockType, the text part referred by Regex /-----BEGIN PGP (.*)-----/
+   *                 could be "UNVERIFIED MESSAGE" or "PRIVATE KEY" or "PUBLIC KEY"
+   *                 If block is not found, the null string is returned;
+   */
   locateArmoredBlock: function (text, offset, indentStr, beginIndexObj, endIndexObj,
             indentStrObj) {
     Ec.DEBUG_LOG("enigmail.js: Enigmail.locateArmoredBlock: "+offset+", '"+indentStr+"'\n");
@@ -1843,12 +1853,13 @@ Enigmail.prototype = {
   /**
    * Import key into local key ring
    *
-   * @param  WindowObj    parent     
-   * @param  Boolean      uiFlags    True when interactive resp. with user interface
-   * @param  String       msgText    Includes the armored openPGP block. 
-   *                                 Must contain a public key block. 
-   * @param  String       keyId      Optional: A 16-HEXdigit-String
-   * @param  errorMsgObj  ReturnObj
+   * @param  WindowObj  parent     
+   * @param  Boolean    uiFlags    True when interactive resp. with user interface
+   * @param  String     msgText    Includes the armored openPGP block. 
+   *                               Must contain a public key block. 
+   * @param  String     keyId        Optional: A 16-HEXdigit-String
+   * @param  ReturnObj  errorMsgObj  errorMsgObj.value will be returned 
+                                     and probably alerted to the user.
    * @return Integer ExitCode
    *  ExitCode == 0  => success
    *  ExitCode > 0   => error
@@ -1864,62 +1875,79 @@ Enigmail.prototype = {
       return 1;
     }
 
-    var beginIndexObj = {};
-    var endIndexObj   = {};
+    /**
+     * Repeat this, as long as a valid KEY BLOCK is found.
+     * The first block must be a PUBLIC KEY BLOCK.
+     */
+    var openPgpBlockCount = 0;
+    var beginIndexObj = {value: 0};
+    var endIndexObj   = {value: 0};
     var indentStrObj   = {};
-    var blockType = this.locateArmoredBlock(msgText, 0, "",
-                                            beginIndexObj, endIndexObj,
-                                            indentStrObj);
+    do {
+      var blockType = this.locateArmoredBlock(msgText, endIndexObj.value, "",
+                                              beginIndexObj, endIndexObj,
+                                              indentStrObj);
 
-    if (!blockType) {
-      errorMsgObj.value = Ec.getString("noPGPblock");
-      return 1;
-    }
-
-    if (blockType != "PUBLIC KEY BLOCK") {
-      errorMsgObj.value = Ec.getString("notFirstBlock");
-      return 1;
-    }
-
-    var pgpBlock = msgText.substr(beginIndexObj.value,
-                                  endIndexObj.value - beginIndexObj.value + 1);
-
-    var interactive = uiFlags & nsIEnigmail.UI_INTERACTIVE;
-
-    if (interactive) {
-      if (!Ec.confirmDlg(parent, Ec.getString("importKeyConfirm"), Ec.getString("keyMan.button.import"))) {
-        errorMsgObj.value = Ec.getString("failCancel");
-        return -1;
+      // If no block is found in the second run, just quit the loop.
+      if (!blockType && openPgpBlockCount > 0) {
+        break;
       }
-    }
 
-    var args = Ec.getAgentArgs(true);
-    args.push("--import");
+      // If no block is found in the first run, this is a serious misbehaviour.
+      if (!blockType) {
+        errorMsgObj.value = Ec.getString("noPGPblock");
+        return 1;
+      }
 
-    var exitCodeObj    = {};
-    var statusFlagsObj = {};
-    var statusMsgObj   = {};
+      // The first found block has to be a PUBLIC KEY BLOCK.
+      if (blockType != "PUBLIC KEY BLOCK" && openPgpBlockCount === 0) {
+        errorMsgObj.value = Ec.getString("notFirstBlock");
+        return 1;
+      }
 
-    var output = this.execCmd(this.agentPath, args, null, pgpBlock,
-                        exitCodeObj, statusFlagsObj, statusMsgObj, errorMsgObj);
+      var pgpBlock = msgText.substr(beginIndexObj.value,
+                                    endIndexObj.value - beginIndexObj.value + 1);
 
-    var statusMsg = statusMsgObj.value;
+      var interactive = uiFlags & nsIEnigmail.UI_INTERACTIVE;
 
-    var pubKeyId;
-
-    if (exitCodeObj.value == 0) {
-      // Normal return
-      this.invalidateUserIdList();
-      if (statusMsg && (statusMsg.search("IMPORTED ") > -1)) {
-        var matches = statusMsg.match(/(^|\n)IMPORTED (\w{8})(\w{8})/);
-
-        if (matches && (matches.length > 3)) {
-          pubKeyId = "0x" + matches[3];
-          Ec.DEBUG_LOG("enigmail.js: Enigmail.importKey: IMPORTED "+pubKeyId+"\n");
+      if (interactive) {
+        if (!Ec.confirmDlg(parent, Ec.getString("importKeyConfirm"), Ec.getString("keyMan.button.import"))) {
+          errorMsgObj.value = Ec.getString("failCancel");
+          return -1;
         }
       }
-    }
 
+      var args = Ec.getAgentArgs(true);
+      args.push("--import");
+
+      var exitCodeObj    = {};
+      var statusFlagsObj = {};
+      var statusMsgObj   = {};
+
+      var previousErrors = errorMsgObj.value ? errorMsgObj.value + "\n" : "";
+      var output = this.execCmd(this.agentPath, args, null, pgpBlock,
+                          exitCodeObj, statusFlagsObj, statusMsgObj, errorMsgObj);
+      // All error messages are appended before returning.
+      errorMsgObj.value = previousErrors + errorMsgObj.value; 
+
+      var statusMsg = statusMsgObj.value;
+
+      var pubKeyId;
+
+      if (exitCodeObj.value == 0) {
+        // Normal return
+        this.invalidateUserIdList();
+        if (statusMsg && (statusMsg.search("IMPORTED ") > -1)) {
+          var matches = statusMsg.match(/(^|\n)IMPORTED (\w{8})(\w{8})/);
+
+          if (matches && (matches.length > 3)) {
+            pubKeyId = "0x" + matches[3];
+            Ec.DEBUG_LOG("enigmail.js: Enigmail.importKey: IMPORTED "+pubKeyId+"\n");
+          }
+        }
+      }
+      openPgpBlockCount++;
+    } while (blockType);
     return exitCodeObj.value;
   },
 

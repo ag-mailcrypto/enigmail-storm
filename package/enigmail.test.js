@@ -32,11 +32,19 @@
  * the terms of any one of the MPL, the GPL or the LGPL.
  * ***** END LICENSE BLOCK ***** */
 
+
+var parallel = false;
+
+
 var testKey;
 var testKeyId = "FDF633A2";
 var testKeyFingerprint = "8DF4D0E375A31ACD450B43E98D18EB22FDF633A2";
-var testKeyPrivateBlock = ''; // see at the end of this document
-var testKeyPublicBlock = ''; // see at the end of this document
+var testKeys = { // see at the end of this document
+  privateBlock: '', 
+  publicBlock: '',
+  emptyBlock: '',
+  brokenBlock: '',
+};
 var keyManagerDialog;
 var enigmailSvc;
 var childDialog;
@@ -58,40 +66,32 @@ function tearDown() {
 }
 
 /**
- * Import an empty block
+ * Import an empty or broken block or just the private part
+ *
+ * A broken block leads to errorCode 512.
+ * An empty block has errorCode 1.
+ * A private block in the beginning also has errorCode 1.
  *
  * @result  This is not allowed!
  */
-testImportEmptyBlock.priority = 'must';
-function testImportEmptyBlock() {
+testImportInvalidBlock.priority = 'must';
+testImportInvalidBlock.parameters = [
+  {value: "brokenBlock", errorMessage: "gpg: import from `[stdin]' failed", errorCode: 512},
+  {value: "emptyBlock", errorMessage: "noPGPblock", errorCode: 1},
+  {value: "privateBlock", errorMessage: "notFirstBlock", errorCode: 1}
+];
+function testImportInvalidBlock(aParameter) {
   var errorMsgObj = {};
   var exitCode = enigmailSvc.importKey(
                     keyManagerDialog, 
                     false, 
-                    "", 
+                    testKeys[aParameter.value],
                     "", 
                     errorMsgObj);
-  assert.equals(1, exitCode);
-  assert.equals(keyManagerDialog.EnigGetString("noPGPblock"), errorMsgObj.value);
+  assert.equals(aParameter.errorCode, exitCode);
+  assert.contains(keyManagerDialog.EnigGetString(aParameter.errorMessage), errorMsgObj.value);
 }
 
-/**
- * Import only the private part of a pgp key
- * 
- * @result  This is not allowed!
- */
-testImportEmptyBlock.priority = 'must';
-function testImportEmptyBlock() {
-  var errorMsgObj = {};
-  var exitCode = enigmailSvc.importKey(
-                    keyManagerDialog, 
-                    false, 
-                    testKeyPrivateBlock, 
-                    "", 
-                    errorMsgObj);
-  assert.equals(1, exitCode);
-  assert.equals(keyManagerDialog.EnigGetString("notFirstBlock"), errorMsgObj.value);
-}
 
 /**
  * Import the test key, only the public part.
@@ -105,7 +105,7 @@ function testImportPublicKey() {
   var exitCode = enigmailSvc.importKey(
                     keyManagerDialog, 
                     interactive, 
-                    testKeyPublicBlock,
+                    testKeys.publicBlock,
                     "", errorMsgObj);
   assert.equals(0, exitCode);
   
@@ -140,7 +140,7 @@ function testImportPublicAndPrivateKey() {
   var exitCode = enigmailSvc.importKey(
                     keyManagerDialog, 
                     interactive, 
-                    testKeyPublicBlock + "\n" + testKeyPrivateBlock, 
+                    testKeys.publicBlock + "\n" + testKeys.privateBlock, 
                     "", errorMsgObj);
   assert.equals(0, exitCode);
   
@@ -197,8 +197,17 @@ function openDialogAndWaitForIt(win, dialogName) {
   return dialog;
 }
 
-
-testKeyPublicBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
+testKeys.emptyBlock = 'Hello Bob. I like your cat. Best, Alice';
+testKeys.brokenBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
+Version: GnuPG v1.4.13 (GNU/Linux)\n\
+\n\
+mQENBFHsE4QBCAC1rY/rjnYgIF/t2R7Pn+S2LMUtFbyJR/LWqC8+wTBo2Y34YH58\n\
+PlQVSKq4OXSRuSU1L9bHI15MXOp2Kx6PQV5+Yi/m/rybq/MX/RazUkaiXFrDt77B\n\
+fJjuPcGF3JOFQoSfrbvsCLeVAuJamdWB/gkYBgFH1T9hxwfooanmKjFn9lp\n\
+GKZevFwp236pebE=\n\
+=gyL8\n\
+-----END PGP PUBLIC KEY BLOCK-----';
+testKeys.publicBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
 Version: GnuPG v1.4.13 (GNU/Linux)\n\
 \n\
 mQENBFHsE4QBCAC1rY/rjnYgIF/t2R7Pn+S2LMUtFbyJR/LWqC8+wTBo2Y34YH58\n\
@@ -668,7 +677,7 @@ YiRl7R4+IKGUssizYoK4AhJeeeLeVAuJamdWB/gkYBgFH1T9hxwfooanmKjFn9lp\n\
 GKZevFwp236pebE=\n\
 =gyL8\n\
 -----END PGP PUBLIC KEY BLOCK-----';
-testKeyPrivateBlock = '-----BEGIN PGP PRIVATE KEY BLOCK-----\n\
+testKeys.privateBlock = '-----BEGIN PGP PRIVATE KEY BLOCK-----\n\
 Version: GnuPG v1.4.13 (GNU/Linux)\n\
 \n\
 lQOYBFHsE4QBCAC1rY/rjnYgIF/t2R7Pn+S2LMUtFbyJR/LWqC8+wTBo2Y34YH58\n\
