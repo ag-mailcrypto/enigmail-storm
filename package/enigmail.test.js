@@ -33,21 +33,26 @@
  * ***** END LICENSE BLOCK ***** */
 
 
+// These tests can not be executed parallel, because they use global variables
+// resp. the GPG key ring, which is globally accessable.
 var parallel = false;
 
+var description = 'Test the "clipboard import keys" functions';
 
-var testKey;
-var testKeyId = "FDF633A2";
-var testKeyFingerprint = "8DF4D0E375A31ACD450B43E98D18EB22FDF633A2";
-var testKeys = { // see at the end of this document
+// Informations about the testkey.
+// For the complete data, see at the end of this document
+var testKey = { 
   privateBlock: '', 
   publicBlock: '',
   emptyBlock: '',
   brokenBlock: '',
+  id:  "FDF633A2",
+  fingerprint: "8DF4D0E375A31ACD450B43E98D18EB22FDF633A2",
 };
+
+// Public enigmail objects 
 var keyManagerDialog;
 var enigmailSvc;
-var childDialog;
 
 /**
  * This function is always processed before each test.
@@ -59,14 +64,14 @@ function setUp() {
 }
 
 /**
- * Close the key manager dialog.
+ * Close the key manager dialog after each test.
  */ 
 function tearDown() {
   keyManagerDialog.close();
 }
 
 /**
- * Import an empty or broken block or just the private part
+ * Import an empty or broken block or just the private part vai clipboard.
  *
  * A broken block leads to errorCode 512.
  * An empty block has errorCode 1.
@@ -85,7 +90,7 @@ function testImportInvalidBlock(aParameter) {
   var exitCode = enigmailSvc.importKey(
                     keyManagerDialog, 
                     false, 
-                    testKeys[aParameter.value],
+                    testKey[aParameter.value],
                     "", 
                     errorMsgObj);
   assert.equals(aParameter.errorCode, exitCode);
@@ -105,7 +110,7 @@ function testImportPublicKey() {
   var exitCode = enigmailSvc.importKey(
                     keyManagerDialog, 
                     interactive, 
-                    testKeys.publicBlock,
+                    testKey.publicBlock,
                     "", errorMsgObj);
   assert.equals(0, exitCode);
   
@@ -115,7 +120,7 @@ function testImportPublicKey() {
   // - It has 4 subkeys (including main key)
   var exitCodeObj = new Object();
   var errorMsgObj = new Object();
-  var sigListStr = enigmailSvc.getKeySig("0x"+testKeyId, exitCodeObj, errorMsgObj);
+  var sigListStr = enigmailSvc.getKeySig("0x"+testKey.id, exitCodeObj, errorMsgObj);
   assert.equals(0, exitCodeObj.value);
 
   var keyDetails = keyManagerDialog.EnigGetKeyDetails(sigListStr); 
@@ -124,7 +129,7 @@ function testImportPublicKey() {
   assert.equals(4, keyDetails.subkeyList.length, "Import of the subkeys failed");
 
   // clean up: Delete imported test key.
-  keyManagerDialog.EnigmailKeyMgmt.deleteKey(window, "0x"+testKeyId, true);
+  keyManagerDialog.EnigmailKeyMgmt.deleteKey(window, "0x"+testKey.id, true);
 }
 
 
@@ -140,7 +145,7 @@ function testImportPublicAndPrivateKey() {
   var exitCode = enigmailSvc.importKey(
                     keyManagerDialog, 
                     interactive, 
-                    testKeys.publicBlock + "\n" + testKeys.privateBlock, 
+                    testKey.publicBlock + "\n" + testKey.privateBlock, 
                     "", errorMsgObj);
   assert.equals(0, exitCode);
   
@@ -151,7 +156,7 @@ function testImportPublicAndPrivateKey() {
   // - The private key is imported too.
   var exitCodeObj = new Object();
   var errorMsgObj = new Object();
-  var sigListStr = enigmailSvc.getKeySig("0x"+testKeyId, exitCodeObj, errorMsgObj);
+  var sigListStr = enigmailSvc.getKeySig("0x"+testKey.id, exitCodeObj, errorMsgObj);
   assert.equals(0, exitCodeObj.value);
 
   var keyDetails = keyManagerDialog.EnigGetKeyDetails(sigListStr); 
@@ -164,10 +169,10 @@ function testImportPublicAndPrivateKey() {
   var statusFlagsObj = new Object();
   var errorMsgObj = new Object();
   var secretSigListStr = enigmailSvc.getUserIdList(true, true, exitCodeObj, statusFlagsObj, errorMsgObj);
-  assert.contains('fpr:::::::::' + testKeyFingerprint, secretSigListStr, "Import of Secret Key failed");
+  assert.contains('fpr:::::::::' + testKey.fingerprint, secretSigListStr, "Import of Secret Key failed");
 
   // clean up: Delete imported test key.
-  keyManagerDialog.EnigmailKeyMgmt.deleteKey(window, "0x"+testKeyId, true);
+  keyManagerDialog.EnigmailKeyMgmt.deleteKey(window, "0x"+testKey.id, true);
 }
 
 
@@ -197,8 +202,8 @@ function openDialogAndWaitForIt(win, dialogName) {
   return dialog;
 }
 
-testKeys.emptyBlock = 'Hello Bob. I like your cat. Best, Alice';
-testKeys.brokenBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
+testKey.emptyBlock = 'Hello Bob. I like your cat. Best, Alice';
+testKey.brokenBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
 Version: GnuPG v1.4.13 (GNU/Linux)\n\
 \n\
 mQENBFHsE4QBCAC1rY/rjnYgIF/t2R7Pn+S2LMUtFbyJR/LWqC8+wTBo2Y34YH58\n\
@@ -207,7 +212,7 @@ fJjuPcGF3JOFQoSfrbvsCLeVAuJamdWB/gkYBgFH1T9hxwfooanmKjFn9lp\n\
 GKZevFwp236pebE=\n\
 =gyL8\n\
 -----END PGP PUBLIC KEY BLOCK-----';
-testKeys.publicBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
+testKey.publicBlock = '-----BEGIN PGP PUBLIC KEY BLOCK-----\n\
 Version: GnuPG v1.4.13 (GNU/Linux)\n\
 \n\
 mQENBFHsE4QBCAC1rY/rjnYgIF/t2R7Pn+S2LMUtFbyJR/LWqC8+wTBo2Y34YH58\n\
@@ -677,7 +682,7 @@ YiRl7R4+IKGUssizYoK4AhJeeeLeVAuJamdWB/gkYBgFH1T9hxwfooanmKjFn9lp\n\
 GKZevFwp236pebE=\n\
 =gyL8\n\
 -----END PGP PUBLIC KEY BLOCK-----';
-testKeys.privateBlock = '-----BEGIN PGP PRIVATE KEY BLOCK-----\n\
+testKey.privateBlock = '-----BEGIN PGP PRIVATE KEY BLOCK-----\n\
 Version: GnuPG v1.4.13 (GNU/Linux)\n\
 \n\
 lQOYBFHsE4QBCAC1rY/rjnYgIF/t2R7Pn+S2LMUtFbyJR/LWqC8+wTBo2Y34YH58\n\
