@@ -583,11 +583,16 @@ Enigmail.msg = {
   addAttachment: function (attachment)
   {
     if (typeof(AddAttachment) == "undefined") {
-      // TB >= 3.0
-      AddUrlAttachment(attachment);
+      if (typeof(AddUrlAttachment) == "undefined") {
+        // TB >= 24
+        AddAttachments([attachment]);
+      }
+      else
+        // TB 17
+        AddUrlAttachment(attachment);
     }
     else {
-      // SeaMonkey and TB <= 3.0
+      // SeaMonkey
       AddAttachment(attachment);
     }
   },
@@ -1336,6 +1341,8 @@ Enigmail.msg = {
     }
     var encryptIfPossible = false;
     if (sendFlags & nsIEnigmail.SAVE_MESSAGE) {
+      this.setDraftStatus(sendFlags);
+
       if (!((sendFlags & ENCRYPT) && EnigmailCommon.confirmPref(window, EnigmailCommon.getString("savingMessage"), "saveEncrypted",
               EnigmailCommon.getString("msgCompose.button.encrypt"),
               EnigmailCommon.getString("msgCompose.button.dontEncrypt")))) {
@@ -1343,7 +1350,6 @@ Enigmail.msg = {
 
         if (this.attachOwnKeyObj.appendAttachment) this.attachOwnKey();
 
-        if (sendFlags & SIGN) this.setDraftStatus(sendFlags);
         return true;
       }
     }

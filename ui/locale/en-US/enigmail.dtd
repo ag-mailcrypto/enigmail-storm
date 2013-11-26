@@ -75,8 +75,6 @@
 <!ENTITY enigmail.whenSending.label       "When sending mail">
 <!ENTITY enigmail.moreOptions.label       "More options">
 
-<!ENTITY enigmail.encryptToSelf.label     "Add my own key to the recipients list">
-<!ENTITY enigmail.encryptToSelf.tooltip   "If enabled, you will always be able to decrypt messages you have sent.">
 <!ENTITY enigmail.alwaysTrustSend.label   "Always trust people's keys">
 <!ENTITY enigmail.alwaysTrustSend.tooltip "Do not use the Web of Trust to determine the validity of keys">
 <!ENTITY enigmail.useNonDefaultComment.label "Add Enigmail comment in OpenPGP signature">
@@ -653,9 +651,9 @@
 <!ENTITY enigmail.setupWiz.pgInstall.desc            "In order to use OpenPGP, GnuPG is required as additional component for doing the cryptographic work.
                                                       The wizard tried to locate GnuPG, but it could not be found.">
 <!ENTITY enigmail.setupWiz.pgInstall.installDesc     "OpenPGP can download GnuPG and launch the installer for you.
-                                                      If you wish to do so, click on the install button to download and install GnuPG.
+                                                      If you wish to do so, click on the 'Install' button to download and install GnuPG.
                                                       <html:br/><html:br/>
-                                                      Alternatively, if you already installed GnuPG, use the Browse button to locate GnuPG for the wizard.">
+                                                      Alternatively, if you already installed GnuPG, use the 'Browse' button to locate GnuPG for the wizard.">
 <!ENTITY enigmail.setupWiz.pgInstall.locateDesc      "Please locate GnuPG using the Browse button.">
 <!ENTITY enigmail.setupWiz.pgInstall.installButton   "Install ...">
 <!ENTITY enigmail.setupWiz.pgInstall.locateButton    "Browse ...">
